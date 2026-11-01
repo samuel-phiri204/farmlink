@@ -1,0 +1,5 @@
+farmlink.db
+farmlink-live.db
+farmlink-live.db.db
+__pycache__/
+*.zip

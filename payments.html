@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payments | FarmLink</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="java.js" defer></script>
+</head>
+<body>
+<div id="site-header"></div>
+
+<main>
+  <section class="page-banner">
+    <h2>Payments</h2>
+    <p>Choose your farm products, then place your order.</p>
+  </section>
+
+  <section class="products">
+    <div class="product-grid">
+
+      <div class="product-card" data-id="1" data-name="Maize Seeds (5kg bag)" data-price="150">
+        <img src="images/maize-seeds.jpeg" alt="Maize Seeds">
+        <h3>Maize Seeds (5kg bag)</h3>
+        <p class="price">K150</p>
+        <input type="number" min="1" value="1" aria-label="Quantity">
+        <button type="button" class="add-btn">Add to cart</button>
+      </div>
+
+      <div class="product-card" data-id="2" data-name="Vegetable Seeds (packet)" data-price="30">
+        <img src="images/veg-seeds.jpg" alt="Vegetable Seeds">
+        <h3>Vegetable Seeds (packet)</h3>
+        <p class="price">K30</p>
+        <input type="number" min="1" value="1" aria-label="Quantity">
+        <button type="button" class="add-btn">Add to cart</button>
+      </div>
+
+      <div class="product-card" data-id="3" data-name="Fertilizer - Compound D (50kg)" data-price="650">
+        <img src="images/Fertilizer compound.jpg " alt="Compound D Fertilizer">
+        <h3>Fertilizer - Compound D (50kg)</h3>
+        <p class="price">K650</p>
+        <input type="number" min="1" value="1" aria-label="Quantity">
+        <button type="button" class="add-btn">Add to cart</button>
+      </div>
+
+      <div class="product-card" data-id="4" data-name="Fertilizer - Urea (50kg)" data-price="600">
+        <img src="images/Urea.jpg " alt="Urea Fertilizer">
+        <h3>Fertilizer - Urea (50kg)</h3>
+        <p class="price">K600</p>
+        <input type="number" min="1" value="1" aria-label="Quantity">
+        <button type="button" class="add-btn">Add to cart</button>
+      </div>
+
+      <div class="product-card" data-id="5" data-name="Slasher" data-price="50">
+        <img src="images/lasher.jpg " alt="lasher">
+        <h3>lasher</h3>
+        <p class="price">K50</p>
+        <input type="number" min="1" value="1" aria-label="Quantity">
+        <button type="button" class="add-btn">Add to cart</button>
+      </div>
+
+    </div>
+  </section>
+
+  <section class="section form-section" id="checkout">
+    <h2>Your Cart</h2>
+    <ul id="cart-list" class="content-list"></ul>
+    <p><strong id="cart-total">Cart is empty</strong></p>
+
+    <form id="order-form">
+      <label for="cust-name">Full Name</label>
+      <input id="cust-name" type="text" required>
+
+      <label for="cust-phone">Phone Number</label>
+      <input id="cust-phone" type="tel" required>
+
+      <label for="pay-method">Payment Method</label>
+      <select id="pay-method" required>
+        <option value="">Choose a method</option>
+        <option value="mtn_momo">MTN Mobile Money</option>
+        <option value="airtel_money">Airtel Money</option>
+        <option value="cash">Cash on collection</option>
+      </select>
+
+      <button type="submit">Place Order</button>
+      <p id="order-message" role="status"></p>
+    </form>
+  </section>
+</main>
+
+<div id="site-footer"></div>
+
+<script>
+  const cart = {};   // id -> { name, price, qty }
+
+  function renderCart() {
+    const list = document.getElementById("cart-list");
+    const totalEl = document.getElementById("cart-total");
+    list.innerHTML = "";
+    let total = 0;
+
+    Object.values(cart).forEach(item => {
+      total += item.price * item.qty;
+      const li = document.createElement("li");
+      li.textContent = item.qty + " x " + item.name + " = K" + (item.price * item.qty);
+      list.appendChild(li);
+    });
+
+    totalEl.textContent = total ? "Total: K" + total : "Cart is empty";
+  }
+
+  document.querySelectorAll(".add-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const card = btn.closest(".product-card");
+      const id = card.dataset.id;
+      const qty = Math.max(1, parseInt(card.querySelector("input").value) || 1);
+
+      if (cart[id]) {
+        cart[id].qty += qty;
+      } else {
+        cart[id] = {
+          name: card.dataset.name,
+          price: Number(card.dataset.price),
+          qty: qty
+        };
+      }
+      renderCart();
+    });
+  });
+
+  document.getElementById("order-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById("order-message");
+
+    const items = Object.entries(cart).map(([id, it]) => ({ id: id, qty: it.qty }));
+    if (items.length === 0) {
+      msg.textContent = "Please add at least one product to your cart.";
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: document.getElementById("cust-name").value,
+          phone: document.getElementById("cust-phone").value,
+          method: document.getElementById("pay-method").value,
+          items: items
+        })
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        msg.textContent = "Order #" + data.order_id + " received. Total: K" + data.total +
+          ". Payment is pending, and we will contact you to complete it.";
+        Object.keys(cart).forEach(k => delete cart[k]);
+        renderCart();
+        e.target.reset();
+      } else {
+        msg.textContent = data.error;
+      }
+    } catch (err) {
+      msg.textContent = "Could not reach the server. Please try again.";
+    }
+  });
+</script>
+</body>
+</html>
